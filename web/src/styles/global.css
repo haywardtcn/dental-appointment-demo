@@ -734,7 +734,8 @@ section:focus {
   font-size: 16px;
 }
 .field input,
-.field select {
+.field select,
+.field textarea {
   font: inherit;
   color: var(--ground);
   background: var(--field);
@@ -750,8 +751,18 @@ section:focus {
   appearance: none;
   cursor: pointer;
 }
+.field textarea {
+  padding: 14px 16px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.field select:disabled {
+  cursor: progress;
+  color: var(--on-ink-soft);
+}
 .field input:focus-visible,
-.field select:focus-visible {
+.field select:focus-visible,
+.field textarea:focus-visible {
   outline: 2px solid var(--ground);
   outline-offset: 2px;
 }
@@ -793,6 +804,59 @@ section:focus {
 .form-foot p {
   margin: 0;
   color: var(--on-ink-soft);
+}
+/* Step label, held-time card and messages of the two-step booking. */
+.step {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--on-ink-soft);
+  font-size: 15px;
+  font-weight: 500;
+}
+.held {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  background: var(--field);
+  border-radius: var(--radius-photo);
+  padding: 22px 24px;
+  animation: done-in 0.4s var(--ease-out) both;
+}
+.held p {
+  margin: 0;
+}
+.held-title {
+  font-weight: 500;
+  margin-bottom: 4px !important;
+}
+.held-time {
+  margin: 6px 0 0;
+  color: var(--on-ink-soft);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.held-time.low {
+  color: var(--error-on-ink);
+}
+.notice {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--field);
+  color: #e6e0d9;
+  font-size: 15px;
+}
+.notice[role='alert'] {
+  color: var(--error-on-ink);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 .done {
   margin-top: 44px;
@@ -873,6 +937,49 @@ section:focus {
 .hours tr.today th,
 .hours tr.today td {
   color: var(--white);
+}
+
+/* Pages opened from email links */
+.portal {
+  min-height: calc(100vh - var(--header-h));
+  padding-top: calc(var(--header-h) + 72px);
+}
+.portal-wrap {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: flex-start;
+}
+.portal-wrap .h2,
+.portal-wrap .lead {
+  margin: 0;
+}
+.portal .lead {
+  color: #e6e0d9;
+}
+.summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px 28px;
+  margin: 0;
+  width: 100%;
+  background: var(--field);
+  border-radius: var(--radius-photo);
+  padding: 28px;
+}
+.summary dt {
+  color: var(--on-ink-soft);
+}
+.summary dd {
+  margin: 0;
+}
+.soft-on-ink {
+  color: var(--on-ink-soft);
+  margin: 0;
+}
+.ask p {
+  margin: 0 0 16px;
 }
 
 /* Footer */

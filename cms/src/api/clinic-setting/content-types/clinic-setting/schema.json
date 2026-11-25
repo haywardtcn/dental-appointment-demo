@@ -1,0 +1,69 @@
+{
+  "kind": "singleType",
+  "collectionName": "clinic_settings",
+  "info": {
+    "singularName": "clinic-setting",
+    "pluralName": "clinic-settings",
+    "displayName": "診所設定 Clinic settings",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "sessionMinutes": {
+      "type": "integer",
+      "default": 30,
+      "min": 5,
+      "max": 240
+    },
+    "holdMinutes": {
+      "type": "integer",
+      "default": 10,
+      "min": 1
+    },
+    "minLeadTimeMin": {
+      "type": "integer",
+      "default": 120,
+      "min": 0
+    },
+    "bookingHorizonDays": {
+      "type": "integer",
+      "default": 60,
+      "min": 1
+    },
+    "waitlistOfferMinutes": {
+      "type": "integer",
+      "default": 30,
+      "min": 5
+    },
+    "waitlistMaxOffers": {
+      "type": "integer",
+      "default": 3,
+      "min": 1
+    },
+    "cancelCutoffHours": {
+      "type": "integer",
+      "default": 24,
+      "min": 0
+    },
+    "maxSameServiceBookings": {
+      "type": "integer",
+      "default": 1,
+      "min": 1
+    },
+    "maxActiveBookingsPerContact": {
+      "type": "integer",
+      "default": 3,
+      "min": 1
+    },
+    "adminEmail": {
+      "type": "email"
+    },
+    "clinicPhone": {
+      "type": "string",
+      "default": "+852 2888 0000"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "kind": "collectionType",
+  "collectionName": "services",
+  "info": {
+    "singularName": "service",
+    "pluralName": "services",
+    "displayName": "服務 Service",
+    "description": "時長 + buffer 決定要佔幾多個連續 session。"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "slug": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "nameZh": {
+      "type": "string",
+      "required": true
+    },
+    "nameEn": {
+      "type": "string",
+      "required": true
+    },
+    "durationMin": {
+      "type": "integer",
+      "required": true,
+      "min": 5,
+      "default": 30
+    },
+    "bufferMin": {
+      "type": "integer",
+      "default": 10,
+      "min": 0
+    },
+    "bookable": {
+      "type": "boolean",
+      "default": true
+    },
+    "sortOrder": {
+      "type": "integer",
+      "default": 0
+    },
+    "doctors": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::doctor.doctor",
+      "inversedBy": "services"
+    },
+    "scheduleRules": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::schedule-rule.schedule-rule",
+      "mappedBy": "services"
+    },
+    "reservations": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::reservation.reservation",
+      "mappedBy": "service"
+    },
+    "waitlistEntries": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::waitlist-entry.waitlist-entry",
+      "mappedBy": "service"
+    }
+  }
+}

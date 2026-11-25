@@ -7,10 +7,40 @@ import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { HERO_SRC, Hero } from './components/Hero';
 import { Loader } from './components/Loader';
+import { Portal, portalRoute } from './components/Portal';
 import { Services, type ServiceKey } from './components/Services';
 import { playHero, prefersReducedMotion, scrollToId, startReveals, startSmoothScroll } from './lib/motion';
 
 export default function App() {
+  const route = portalRoute(window.location.pathname);
+
+  // Email-link pages have none of the home page sections, so header links go back to them.
+  useEffect(() => {
+    if (!route) return;
+    const onClick = (e: MouseEvent) => {
+      const href = (e.target as Element).closest<HTMLAnchorElement>('a[href^="#"]')?.getAttribute('href');
+      if (!href) return;
+      e.preventDefault();
+      window.location.assign(`/${href}`);
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, [route]);
+
+  return route ? (
+    <IconoirProvider iconProps={{ strokeWidth: 1.6 }}>
+      <Header />
+      <main>
+        <Portal route={route} />
+      </main>
+      <Footer />
+    </IconoirProvider>
+  ) : (
+    <Site />
+  );
+}
+
+function Site() {
   const [loading, setLoading] = useState(() => !prefersReducedMotion());
   const [service, setService] = useState<ServiceKey | ''>('');
 

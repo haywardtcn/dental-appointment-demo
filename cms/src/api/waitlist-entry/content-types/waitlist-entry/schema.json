@@ -1,0 +1,115 @@
+{
+  "kind": "collectionType",
+  "collectionName": "waitlist_entries",
+  "info": {
+    "singularName": "waitlist-entry",
+    "pluralName": "waitlist-entries",
+    "displayName": "輪候 Waitlist",
+    "description": "只由 admin 加入。想改早就揀 replacesReservation。"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "service": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::service.service",
+      "inversedBy": "waitlistEntries"
+    },
+    "doctor": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::doctor.doctor",
+      "inversedBy": "waitlistEntries"
+    },
+    "dateFrom": {
+      "type": "date",
+      "required": true
+    },
+    "dateTo": {
+      "type": "date",
+      "required": true
+    },
+    "preferredTime": {
+      "type": "enumeration",
+      "enum": [
+        "ANY",
+        "MORNING",
+        "AFTERNOON"
+      ],
+      "default": "ANY"
+    },
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "phone": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "email",
+      "required": true
+    },
+    "language": {
+      "type": "string",
+      "default": "zh-HK"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "ACTIVE",
+        "OFFERED",
+        "BOOKED",
+        "OFFER_EXPIRED",
+        "EXPIRED",
+        "CANCELLED"
+      ],
+      "default": "ACTIVE"
+    },
+    "replacesReservation": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::reservation.reservation"
+    },
+    "offerReservation": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::reservation.reservation"
+    },
+    "queuedAt": {
+      "type": "datetime"
+    },
+    "offerCount": {
+      "type": "integer",
+      "default": 0
+    },
+    "offerExpiresAt": {
+      "type": "datetime"
+    },
+    "skippedPeriods": {
+      "type": "json"
+    },
+    "note": {
+      "type": "text"
+    },
+    "offerTokenHash": {
+      "type": "string",
+      "private": true
+    },
+    "manageTokenHash": {
+      "type": "string",
+      "private": true
+    },
+    "phoneNormalized": {
+      "type": "string",
+      "private": true
+    },
+    "emailNormalized": {
+      "type": "string",
+      "private": true
+    }
+  }
+}

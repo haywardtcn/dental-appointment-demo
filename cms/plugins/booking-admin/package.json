@@ -1,0 +1,8 @@
+{
+  "name": "booking-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Admin-only routes for the booking tools page and the reservation actions.",
+  "strapi": { "kind": "plugin", "name": "booking-admin", "displayName": "Booking admin" },
+  "main": "strapi-server.js"
+}

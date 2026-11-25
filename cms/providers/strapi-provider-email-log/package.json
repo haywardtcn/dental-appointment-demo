@@ -1,0 +1,7 @@
+{
+  "name": "strapi-provider-email-log",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Demo email provider: writes each email to the log instead of sending it.",
+  "main": "index.js"
+}

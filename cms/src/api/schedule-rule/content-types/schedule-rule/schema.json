@@ -1,0 +1,97 @@
+{
+  "kind": "collectionType",
+  "collectionName": "schedule_rules",
+  "info": {
+    "singularName": "schedule-rule",
+    "pluralName": "schedule-rules",
+    "displayName": "排期規則 Schedule rule",
+    "description": "daysOfWeek 用 1=星期一 … 7=星期日，例如 [1,2,3,4,5]。CLOSE 冇 timeRanges = 成日休息。doctors / services 留空 = 全部。"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "effect": {
+      "type": "enumeration",
+      "enum": [
+        "OPEN",
+        "CLOSE",
+        "SESSION_LENGTH",
+        "DAILY_LIMIT"
+      ],
+      "required": true,
+      "default": "OPEN"
+    },
+    "repeat": {
+      "type": "enumeration",
+      "enum": [
+        "WEEKLY",
+        "DATE_RANGE",
+        "MONTHLY_NTH_WEEKDAY",
+        "PUBLIC_HOLIDAY",
+        "BEFORE_PUBLIC_HOLIDAY"
+      ],
+      "required": true,
+      "default": "WEEKLY"
+    },
+    "daysOfWeek": {
+      "type": "json"
+    },
+    "nthWeek": {
+      "type": "integer",
+      "min": -1,
+      "max": 5
+    },
+    "dateFrom": {
+      "type": "date"
+    },
+    "dateTo": {
+      "type": "date"
+    },
+    "timeRanges": {
+      "type": "component",
+      "repeatable": true,
+      "component": "schedule.time-range"
+    },
+    "sessionMinutes": {
+      "type": "integer",
+      "min": 5,
+      "max": 240
+    },
+    "maxBookings": {
+      "type": "integer",
+      "min": 0
+    },
+    "priority": {
+      "type": "integer",
+      "default": 0
+    },
+    "reasonZh": {
+      "type": "string"
+    },
+    "reasonEn": {
+      "type": "string"
+    },
+    "doctors": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::doctor.doctor",
+      "inversedBy": "scheduleRules"
+    },
+    "services": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::service.service",
+      "inversedBy": "scheduleRules"
+    }
+  }
+}

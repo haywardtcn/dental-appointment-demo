@@ -1,0 +1,145 @@
+{
+  "kind": "collectionType",
+  "collectionName": "reservations",
+  "info": {
+    "singularName": "reservation",
+    "pluralName": "reservations",
+    "displayName": "預約 Reservation",
+    "description": "唔可以刪除，取消請改狀態做 CANCELLED。封時段用 kind = BLOCK。"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "reference": {
+      "type": "string",
+      "unique": true
+    },
+    "doctor": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::doctor.doctor",
+      "inversedBy": "reservations"
+    },
+    "service": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::service.service",
+      "inversedBy": "reservations"
+    },
+    "startAt": {
+      "type": "datetime",
+      "required": true
+    },
+    "endAt": {
+      "type": "datetime"
+    },
+    "blockedUntil": {
+      "type": "datetime"
+    },
+    "kind": {
+      "type": "enumeration",
+      "enum": [
+        "APPOINTMENT",
+        "BLOCK"
+      ],
+      "default": "APPOINTMENT",
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "HELD",
+        "CONFIRMED",
+        "ARRIVED",
+        "COMPLETED",
+        "NO_SHOW",
+        "EXPIRED",
+        "RELEASED",
+        "CANCELLED"
+      ],
+      "default": "CONFIRMED",
+      "required": true
+    },
+    "source": {
+      "type": "enumeration",
+      "enum": [
+        "PUBLIC",
+        "WAITLIST",
+        "ADMIN"
+      ],
+      "default": "ADMIN"
+    },
+    "expiresAt": {
+      "type": "datetime"
+    },
+    "patientName": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "email"
+    },
+    "language": {
+      "type": "string",
+      "default": "zh-HK"
+    },
+    "patientNote": {
+      "type": "text"
+    },
+    "internalNote": {
+      "type": "text"
+    },
+    "cancelReason": {
+      "type": "string"
+    },
+    "notifyPatient": {
+      "type": "boolean",
+      "default": true
+    },
+    "conflict": {
+      "type": "boolean",
+      "default": false
+    },
+    "conflictReason": {
+      "type": "string"
+    },
+    "calendarTitle": {
+      "type": "string"
+    },
+    "calendarColor": {
+      "type": "string"
+    },
+    "holdTokenHash": {
+      "type": "string",
+      "private": true
+    },
+    "manageTokenHash": {
+      "type": "string",
+      "private": true
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "private": true
+    },
+    "phoneNormalized": {
+      "type": "string",
+      "private": true
+    },
+    "emailNormalized": {
+      "type": "string",
+      "private": true
+    },
+    "patientNameNormalized": {
+      "type": "string",
+      "private": true
+    },
+    "reminderSentAt": {
+      "type": "datetime",
+      "private": true
+    }
+  }
+}

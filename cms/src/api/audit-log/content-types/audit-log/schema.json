@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "audit_logs",
+  "info": {
+    "singularName": "audit-log",
+    "pluralName": "audit-logs",
+    "displayName": "操作記錄 Audit log",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "actorType": {
+      "type": "enumeration",
+      "enum": [
+        "PATIENT",
+        "ADMIN",
+        "SYSTEM"
+      ]
+    },
+    "actorId": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "before": {
+      "type": "json"
+    },
+    "after": {
+      "type": "json"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "kind": "collectionType",
+  "collectionName": "notification_logs",
+  "info": {
+    "singularName": "notification-log",
+    "pluralName": "notification-logs",
+    "displayName": "通知記錄 Notification log",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "type": {
+      "type": "string",
+      "required": true
+    },
+    "to": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "text"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "PENDING",
+        "SENT",
+        "FAILED"
+      ],
+      "default": "PENDING"
+    },
+    "attempts": {
+      "type": "integer",
+      "default": 0
+    },
+    "nextAttemptAt": {
+      "type": "datetime"
+    },
+    "sentAt": {
+      "type": "datetime"
+    },
+    "lastError": {
+      "type": "text"
+    },
+    "reservationRef": {
+      "type": "string"
+    }
+  }
+}

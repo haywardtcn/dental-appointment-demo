@@ -48,7 +48,7 @@ export async function syncLock(trx: Knex, r: LockSource): Promise<void> {
   );
   const staleIds = stale.rows.map((row: { reservation_document_id: string }) => row.reservation_document_id);
   if (staleIds.length) {
-    await trx('reservations').whereIn('document_id', staleIds).andWhere('status', 'HELD').update({ status: 'EXPIRED' });
+    await trx('reservations').whereIn('document_id', staleIds).andWhere('booking_status', 'HELD').update({ booking_status: 'EXPIRED' });
   }
 
   try {

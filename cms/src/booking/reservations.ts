@@ -153,8 +153,8 @@ async function holdCandidates(data: ScheduleData, service: Service, doctorSlug: 
 
 export async function releaseHold(id: string, token: string): Promise<boolean> {
   const r = await strapi.db.query(UID.reservation).findOne({ where: { documentId: id } });
-  if (!r || r.status !== 'HELD' || r.holdTokenHash !== hashToken(token)) return false;
-  await runInternal(() => strapi.documents(UID.reservation).update({ documentId: id, data: { status: 'RELEASED' } as any }));
+  if (!r || r.bookingStatus !== 'HELD' || r.holdTokenHash !== hashToken(token)) return false;
+  await runInternal(() => strapi.documents(UID.reservation).update({ documentId: id, data: { bookingStatus: 'RELEASED' } as any }));
   return true;
 }
 
@@ -190,7 +190,7 @@ export async function createHold(input: HoldInput) {
             endAt: new Date(c.slot.end),
             blockedUntil: new Date(c.slot.blockedUntil),
             kind: 'APPOINTMENT',
-            status: 'HELD',
+            bookingStatus: 'HELD',
             source: 'PUBLIC',
             expiresAt,
             holdTokenHash: hashToken(token),
@@ -243,7 +243,7 @@ export async function duplicateViolation(
   const existing = await strapi.db.query(UID.reservation).findMany({
     where: {
       kind: 'APPOINTMENT',
-      status: { $in: ['CONFIRMED', 'ARRIVED'] },
+      bookingStatus: { $in: ['CONFIRMED', 'ARRIVED'] },
       startAt: { $gt: new Date() },
       documentId: { $notIn: exclude.length ? exclude : ['-'] },
       $or: or,
@@ -261,7 +261,7 @@ export async function duplicateViolation(
 export async function remindExistingBooking(who: Contact, locale: string) {
   if (!who.email || (await sentRecently('EXISTING_BOOKING_REMINDER', who.email, 60))) return;
   const existing = await strapi.db.query(UID.reservation).findOne({
-    where: { emailNormalized: who.email, status: 'CONFIRMED', startAt: { $gt: new Date() } },
+    where: { emailNormalized: who.email, bookingStatus: 'CONFIRMED', startAt: { $gt: new Date() } },
     orderBy: { startAt: 'asc' },
   });
   if (!existing) return;
@@ -342,7 +342,7 @@ export async function confirmReservation(
         await strapi.documents(UID.reservation).update({
           documentId,
           data: {
-            status: 'CONFIRMED',
+            bookingStatus: 'CONFIRMED',
             expiresAt: null,
             patientName: patient.name,
             phone: patient.phone,
@@ -357,11 +357,11 @@ export async function confirmReservation(
         let oldWhen: string | undefined;
         if (opts.replaces) {
           const old = await strapi.db.query(UID.reservation).findOne({ where: { documentId: opts.replaces } });
-          if (old && ACTIVE_STATUSES.includes(old.status)) {
+          if (old && ACTIVE_STATUSES.includes(old.bookingStatus)) {
             oldWhen = formatWhen(old.startAt, patient.locale);
             await strapi.documents(UID.reservation).update({
               documentId: opts.replaces,
-              data: { status: 'CANCELLED', cancelReason: patient.locale === 'en' ? 'Moved through the waiting list' : '經輪候改期' } as any,
+              data: { bookingStatus: 'CANCELLED', cancelReason: patient.locale === 'en' ? 'Moved through the waiting list' : '經輪候改期' } as any,
             });
           }
         }
@@ -391,10 +391,10 @@ export async function confirmHold(id: string, token: string, input: PatientInput
   const r = await strapi.db.query(UID.reservation).findOne({ where: { documentId: id }, populate: ['doctor', 'service'] });
   if (!r || r.holdTokenHash !== hashToken(token || '')) throw new BookingError('HOLD_NOT_FOUND', 404);
   // A repeated submit of the same form gets the same answer instead of an error.
-  if (r.status === 'CONFIRMED' && idempotencyKey && r.idempotencyKey === idempotencyKey) {
+  if (r.bookingStatus === 'CONFIRMED' && idempotencyKey && r.idempotencyKey === idempotencyKey) {
     return { ...(await summary(r, r.language)), manageToken: null };
   }
-  if (r.status !== 'HELD' || !r.expiresAt || new Date(r.expiresAt).getTime() <= Date.now()) throw new BookingError('HOLD_EXPIRED', 410);
+  if (r.bookingStatus !== 'HELD' || !r.expiresAt || new Date(r.expiresAt).getTime() <= Date.now()) throw new BookingError('HOLD_EXPIRED', 410);
   return confirmReservation(id, validatePatient(input), { idempotencyKey });
 }
 
@@ -414,13 +414,13 @@ export async function viewBooking(token: string) {
   const upcoming = new Date(r.startAt).getTime() > Date.now();
   return {
     ...(await summary(r, r.language)),
-    status: r.status,
+    status: r.bookingStatus,
     patientName: r.patientName,
     doctorZh: r.doctor?.nameZh,
     doctorEn: r.doctor?.nameEn,
     serviceZh: r.service?.nameZh,
     serviceEn: r.service?.nameEn,
-    canCancel: r.status === 'CONFIRMED' && upcoming && Date.now() < cutoff,
+    canCancel: r.bookingStatus === 'CONFIRMED' && upcoming && Date.now() < cutoff,
     cancelCutoffHours: settings.cancelCutoffHours,
     clinicPhone: settings.clinicPhone,
   };
@@ -429,13 +429,13 @@ export async function viewBooking(token: string) {
 export async function cancelByPatient(token: string) {
   const r = await byManageToken(token);
   const { settings } = await loadScheduleData();
-  if (r.status !== 'CONFIRMED') throw new BookingError('NOT_CANCELLABLE', 409);
+  if (r.bookingStatus !== 'CONFIRMED') throw new BookingError('NOT_CANCELLABLE', 409);
   if (Date.now() >= new Date(r.startAt).getTime() - settings.cancelCutoffHours * 3_600_000) throw new BookingError('CANCEL_CUTOFF', 409);
   await runInternal(() =>
     strapi.db.transaction(async () => {
       await strapi.documents(UID.reservation).update({
         documentId: r.documentId,
-        data: { status: 'CANCELLED', cancelReason: r.language === 'en' ? 'Cancelled by patient' : '病人自行取消' } as any,
+        data: { bookingStatus: 'CANCELLED', cancelReason: r.language === 'en' ? 'Cancelled by patient' : '病人自行取消' } as any,
       });
       await enqueue('BOOKING_CANCELLED', r.email, r.language, { name: r.patientName, reference: r.reference, when: formatWhen(r.startAt, r.language), clinicPhone: settings.clinicPhone }, r.reference);
     })
@@ -460,12 +460,12 @@ const GREY = '#9AA5A3';
 function calendarFields(r: Row) {
   const time = DateTime.fromJSDate(new Date(r.startAt), { zone: ZONE }).toFormat('HH:mm');
   if (r.kind === 'BLOCK') {
-    return { calendarTitle: `封時段 · ${r.doctor?.nameZh ?? ''}${r.internalNote ? ` · ${r.internalNote}` : ''}`, calendarColor: ACTIVE_STATUSES.includes(r.status) ? '#3D5559' : GREY };
+    return { calendarTitle: `封時段 · ${r.doctor?.nameZh ?? ''}${r.internalNote ? ` · ${r.internalNote}` : ''}`, calendarColor: ACTIVE_STATUSES.includes(r.bookingStatus) ? '#3D5559' : GREY };
   }
-  const status = STATUS_ZH[r.status] ?? r.status;
-  const holdUntil = r.status === 'HELD' && r.expiresAt ? `至 ${DateTime.fromJSDate(new Date(r.expiresAt), { zone: ZONE }).toFormat('HH:mm')}` : '';
+  const status = STATUS_ZH[r.bookingStatus] ?? r.bookingStatus;
+  const holdUntil = r.bookingStatus === 'HELD' && r.expiresAt ? `至 ${DateTime.fromJSDate(new Date(r.expiresAt), { zone: ZONE }).toFormat('HH:mm')}` : '';
   const parts = [`${status}${holdUntil}`, time, r.service?.nameZh, r.patientName, r.doctor?.nameZh].filter(Boolean);
-  const color = ['CONFIRMED', 'ARRIVED', 'COMPLETED'].includes(r.status) ? r.doctor?.color || '#0F5C57' : r.status === 'HELD' ? '#8A6D1F' : GREY;
+  const color = ['CONFIRMED', 'ARRIVED', 'COMPLETED'].includes(r.bookingStatus) ? r.doctor?.color || '#0F5C57' : r.bookingStatus === 'HELD' ? '#8A6D1F' : GREY;
   return { calendarTitle: parts.join(' · '), calendarColor: color };
 }
 
@@ -521,7 +521,7 @@ export async function reservationWrite(context: any, next: () => Promise<any>) {
     const merged = { ...r, ...derived };
 
     // Admin bookings: an overlapping booking for the same person is refused; R1 / R2 only warn (family members share phones).
-    if (!internal && r.kind === 'APPOINTMENT' && ['CONFIRMED', 'ARRIVED'].includes(r.status) && (merged.phoneNormalized || merged.emailNormalized)) {
+    if (!internal && r.kind === 'APPOINTMENT' && ['CONFIRMED', 'ARRIVED'].includes(r.bookingStatus) && (merged.phoneNormalized || merged.emailNormalized)) {
       const who = { phone: merged.phoneNormalized, email: merged.emailNormalized, name: merged.patientNameNormalized };
       const v = await duplicateViolation(trx, data.settings, who, { serviceId: r.service.documentId, startAt: start, blockedUntil: new Date(merged.blockedUntil) }, [r.documentId]);
       if (v === 'R3') fail('呢位病人喺同一時間已經有另一個預約 · This patient already has a booking at this time');
@@ -534,9 +534,9 @@ export async function reservationWrite(context: any, next: () => Promise<any>) {
     const wantsMail = !internal && r.kind === 'APPOINTMENT' && r.notifyPatient && r.email;
     let mail: { type: 'BOOKING_CONFIRMED' | 'BOOKING_CANCELLED' | 'BOOKING_RESCHEDULED'; token?: string } | null = null;
     if (wantsMail) {
-      if (!before && r.status === 'CONFIRMED') mail = { type: 'BOOKING_CONFIRMED', token: newToken() };
-      else if (before && before.status !== 'CANCELLED' && r.status === 'CANCELLED') mail = { type: 'BOOKING_CANCELLED' };
-      else if (before && r.status === 'CONFIRMED' && timeChanged) mail = { type: 'BOOKING_RESCHEDULED', token: newToken() };
+      if (!before && r.bookingStatus === 'CONFIRMED') mail = { type: 'BOOKING_CONFIRMED', token: newToken() };
+      else if (before && before.bookingStatus !== 'CANCELLED' && r.bookingStatus === 'CANCELLED') mail = { type: 'BOOKING_CANCELLED' };
+      else if (before && r.bookingStatus === 'CONFIRMED' && timeChanged) mail = { type: 'BOOKING_RESCHEDULED', token: newToken() };
     }
     if (mail?.token) derived.manageTokenHash = hashToken(mail.token);
 
@@ -547,7 +547,7 @@ export async function reservationWrite(context: any, next: () => Promise<any>) {
       doctorDocumentId: r.doctor.documentId,
       startAt: final.startAt,
       blockedUntil: final.blockedUntil,
-      status: final.status,
+      status: final.bookingStatus,
       kind: final.kind,
       expiresAt: final.expiresAt,
     });
@@ -575,14 +575,14 @@ export async function reservationWrite(context: any, next: () => Promise<any>) {
           actorId: user ? String(user.email ?? user.id) : null,
           action: `reservation.${context.action}`,
           target: final.reference,
-          before: before ? { status: before.status, startAt: before.startAt, doctor: before.doctor?.slug } : null,
-          after: { status: final.status, startAt: final.startAt, doctor: r.doctor.slug },
+          before: before ? { status: before.bookingStatus, startAt: before.startAt, doctor: before.doctor?.slug } : null,
+          after: { status: final.bookingStatus, startAt: final.startAt, doctor: r.doctor.slug },
         },
       });
     }
 
-    const wasActive = before && ACTIVE_STATUSES.includes(before.status);
-    freed = Boolean(wasActive && (!ACTIVE_STATUSES.includes(final.status) || timeChanged));
+    const wasActive = before && ACTIVE_STATUSES.includes(before.bookingStatus);
+    freed = Boolean(wasActive && (!ACTIVE_STATUSES.includes(final.bookingStatus) || timeChanged));
     return out;
   });
 

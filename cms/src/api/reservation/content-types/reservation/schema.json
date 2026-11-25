@@ -47,7 +47,7 @@
       "default": "APPOINTMENT",
       "required": true
     },
-    "status": {
+    "bookingStatus": {
       "type": "enumeration",
       "enum": [
         "HELD",

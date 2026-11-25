@@ -59,7 +59,7 @@ function parseRange(q: { from: string; to: string }) {
 
 async function affected(q: { from: string; to: string; doctors?: string[] }) {
   const { from, to } = parseRange(q);
-  const where: Row = { status: { $in: ['HELD', 'CONFIRMED'] }, startAt: { $lt: to }, blockedUntil: { $gt: from } };
+  const where: Row = { bookingStatus: { $in: ['HELD', 'CONFIRMED'] }, startAt: { $lt: to }, blockedUntil: { $gt: from } };
   if (q.doctors?.length) where.doctor = { documentId: { $in: q.doctors } };
   const rows = await strapi.db.query(UID.reservation).findMany({ where, populate: ['doctor', 'service'], orderBy: { startAt: 'asc' } });
   return { from, to, rows };
@@ -73,7 +73,7 @@ export async function emergencyPreview(q: { from: string; to: string; doctors?: 
       documentId: r.documentId,
       reference: r.reference,
       kind: r.kind,
-      status: r.status,
+      status: r.bookingStatus,
       when: formatWhen(r.startAt, 'zh-HK'),
       doctor: r.doctor?.nameZh,
       service: r.service?.nameZh,
@@ -95,15 +95,15 @@ export async function emergencyClose(q: { from: string; to: string; doctors?: st
     strapi.db.transaction(async () => {
       for (const r of rows) {
         if (r.kind === 'BLOCK') {
-          await strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { status: 'CANCELLED', cancelReason: reason } as any });
+          await strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { bookingStatus: 'CANCELLED', cancelReason: reason } as any });
           continue;
         }
-        if (r.status === 'HELD') {
-          await strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { status: 'RELEASED' } as any });
+        if (r.bookingStatus === 'HELD') {
+          await strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { bookingStatus: 'RELEASED' } as any });
           released++;
           continue;
         }
-        await strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { status: 'CANCELLED', cancelReason: reason } as any });
+        await strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { bookingStatus: 'CANCELLED', cancelReason: reason } as any });
         cancelled++;
         if (q.notify !== false && r.email) {
           const locale = r.language || 'zh-HK';
@@ -112,7 +112,7 @@ export async function emergencyClose(q: { from: string; to: string; doctors?: st
       }
       for (const doctorId of doctorIds) {
         await strapi.documents(UID.reservation).create({
-          data: { doctor: doctorId, startAt: from, endAt: to, blockedUntil: to, kind: 'BLOCK', status: 'CONFIRMED', source: 'ADMIN', internalNote: `緊急休診：${reason}`, notifyPatient: false } as any,
+          data: { doctor: doctorId, startAt: from, endAt: to, blockedUntil: to, kind: 'BLOCK', bookingStatus: 'CONFIRMED', source: 'ADMIN', internalNote: `緊急休診：${reason}`, notifyPatient: false } as any,
         });
       }
       const user = strapi.requestContext.get()?.state?.user;
@@ -133,21 +133,21 @@ export async function reservationAction(documentId: string, action: string, body
   if (!r) throw new BookingError('NOT_FOUND', 404);
 
   if (action === 'cancel') {
-    if (!ACTIVE_STATUSES.includes(r.status)) throw new BookingError('NOT_CANCELLABLE', 409);
+    if (!ACTIVE_STATUSES.includes(r.bookingStatus)) throw new BookingError('NOT_CANCELLABLE', 409);
     // Not internal: the document middleware sends the cancellation email when notifyPatient is on.
     await strapi.documents(UID.reservation).update({
       documentId,
-      data: { status: 'CANCELLED', cancelReason: body.reason?.trim() || '診所取消', notifyPatient: body.notify !== false } as any,
+      data: { bookingStatus: 'CANCELLED', cancelReason: body.reason?.trim() || '診所取消', notifyPatient: body.notify !== false } as any,
     });
     return { status: 'CANCELLED' };
   }
   if (STATUS_FOR[action]) {
-    if (!['CONFIRMED', 'ARRIVED', 'COMPLETED', 'NO_SHOW'].includes(r.status)) throw new BookingError('INVALID_STATUS', 409);
-    await strapi.documents(UID.reservation).update({ documentId, data: { status: STATUS_FOR[action] } as any });
+    if (!['CONFIRMED', 'ARRIVED', 'COMPLETED', 'NO_SHOW'].includes(r.bookingStatus)) throw new BookingError('INVALID_STATUS', 409);
+    await strapi.documents(UID.reservation).update({ documentId, data: { bookingStatus: STATUS_FOR[action] } as any });
     return { status: STATUS_FOR[action] };
   }
   if (action === 'resend') {
-    if (r.status !== 'CONFIRMED' || !r.email) throw new BookingError('NOTHING_TO_SEND', 409);
+    if (r.bookingStatus !== 'CONFIRMED' || !r.email) throw new BookingError('NOTHING_TO_SEND', 409);
     const token = newToken();
     const locale = r.language || 'zh-HK';
     const { settings } = await loadScheduleData();
@@ -161,7 +161,7 @@ export async function reservationAction(documentId: string, action: string, body
       manageUrl: manageUrl(token),
       clinicPhone: settings.clinicPhone,
     }, r.reference);
-    return { status: r.status, sent: true };
+    return { status: r.bookingStatus, sent: true };
   }
   throw new BookingError('UNKNOWN_ACTION', 400);
 }
@@ -174,7 +174,7 @@ export async function offerNow(entryDocumentId: string) {
 export async function retryNotification(documentId: string) {
   const n = await strapi.db.query(UID.notification).findOne({ where: { documentId } });
   if (!n) throw new BookingError('NOT_FOUND', 404);
-  await strapi.db.query(UID.notification).update({ where: { id: n.id }, data: { status: 'PENDING', attempts: 0, nextAttemptAt: null, lastError: null } });
+  await strapi.db.query(UID.notification).update({ where: { id: n.id }, data: { deliveryStatus: 'PENDING', attempts: 0, nextAttemptAt: null, lastError: null } });
   return { status: 'PENDING' };
 }
 
@@ -199,7 +199,7 @@ export async function scanConflicts(): Promise<number> {
   const data = await loadScheduleData();
   const activeDoctors = new Set(data.doctors.map((d) => d.documentId));
   const rows = await strapi.db.query(UID.reservation).findMany({
-    where: { kind: 'APPOINTMENT', status: 'CONFIRMED', startAt: { $gt: new Date() } },
+    where: { kind: 'APPOINTMENT', bookingStatus: 'CONFIRMED', startAt: { $gt: new Date() } },
     populate: ['doctor', 'service'],
   });
   const fresh: string[] = [];
@@ -249,12 +249,13 @@ export async function clinicStatus() {
     };
   });
 
-  // The usual week, for the hours table: the first day of each weekday that is not a holiday.
+  // The usual week, for the hours table: weekly rules only, so a one-off closure or holiday
+  // changes its own day (in `days`) without rewriting the whole table.
+  const weeklyRules = data.rules.filter((r) => r.repeat === 'WEEKLY');
   const weekly: Record<number, { start: number; end: number }[]> = {};
-  for (let i = 0; i < 21 && Object.keys(weekly).length < 7; i++) {
+  for (let i = 0; i < 7; i++) {
     const day = today.plus({ days: i });
-    if (data.holidays.has(day.toISODate()!) || weekly[day.weekday]) continue;
-    const plans = (doctorIds.length ? doctorIds : [null]).map((id) => planDay(data.rules, day, id, null, data.holidays, data.settings.sessionMinutes));
+    const plans = (doctorIds.length ? doctorIds : [null]).map((id) => planDay(weeklyRules, day, id, null, new Map(), data.settings.sessionMinutes));
     weekly[day.weekday] = union(plans.flatMap((p) => p.open)).map((r) => ({ start: r.start, end: r.end }));
   }
   const now = DateTime.now().setZone(ZONE);
@@ -266,17 +267,17 @@ export async function clinicStatus() {
 /** Holds that ran out: free them (the lock may already be inactive) and requeue any waitlist offer. */
 export async function expireHolds(): Promise<number> {
   const rows = await strapi.db.query(UID.reservation).findMany({
-    where: { status: 'HELD', expiresAt: { $lt: new Date() }, source: 'PUBLIC' },
+    where: { bookingStatus: 'HELD', expiresAt: { $lt: new Date() }, source: 'PUBLIC' },
     select: ['documentId'],
     limit: 200,
   });
   for (const r of rows) {
-    await runInternal(() => strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { status: 'EXPIRED' } as any }));
+    await runInternal(() => strapi.documents(UID.reservation).update({ documentId: r.documentId, data: { bookingStatus: 'EXPIRED' } as any }));
   }
   // Also catch holds the lock code marked EXPIRED directly, so their lock rows are inactive too.
   await strapi.db.connection.raw(
     `UPDATE booking_slot_lock l SET active = false FROM reservations r
-      WHERE r.document_id = l.reservation_document_id AND l.active AND r.status NOT IN ('HELD','CONFIRMED','ARRIVED','COMPLETED','NO_SHOW')`
+      WHERE r.document_id = l.reservation_document_id AND l.active AND r.booking_status NOT IN ('HELD','CONFIRMED','ARRIVED','COMPLETED','NO_SHOW')`
   );
   return rows.length;
 }
@@ -285,7 +286,7 @@ export async function expireHolds(): Promise<number> {
 export async function purgeAbandonedHolds(): Promise<number> {
   const cutoff = new Date(Date.now() - 3_600_000);
   const rows = await strapi.db.query(UID.reservation).findMany({
-    where: { status: { $in: ['EXPIRED', 'RELEASED'] }, source: 'PUBLIC', updatedAt: { $lt: cutoff } },
+    where: { bookingStatus: { $in: ['EXPIRED', 'RELEASED'] }, source: 'PUBLIC', updatedAt: { $lt: cutoff } },
     select: ['id', 'documentId'],
     limit: 500,
   });
@@ -299,7 +300,7 @@ export async function sendReminders(): Promise<number> {
   const from = new Date(Date.now() + 23 * 3_600_000);
   const to = new Date(Date.now() + 24 * 3_600_000);
   const rows = await strapi.db.query(UID.reservation).findMany({
-    where: { kind: 'APPOINTMENT', status: 'CONFIRMED', startAt: { $gte: from, $lt: to }, reminderSentAt: null },
+    where: { kind: 'APPOINTMENT', bookingStatus: 'CONFIRMED', startAt: { $gte: from, $lt: to }, reminderSentAt: null },
     populate: ['doctor', 'service'],
   });
   const { settings } = await loadScheduleData();

@@ -87,12 +87,14 @@ npm run dev
 ### 預約（Content Manager → 預約 Reservation）
 - **電話預約**：撳 Create new entry，揀醫生、服務、開始時間，填病人資料，再撳 Save。完結時間會自動計，撞時段會即刻報錯。
 - **改時間**：直接改開始時間再 Save。有電郵嘅病人會自動收到改期通知。
-- **取消**：將狀態改做 `CANCELLED`。預約唔可以刪除，刪除會被拒絕。
+- **取消**：用右邊「取消預約並通知」按鈕，或者將 `bookingStatus` 改做 `CANCELLED`。預約唔可以刪除，刪除會被拒絕。
 - **封時段**（例如醫生開會）：新增一個預約，類型（kind）揀 `BLOCK`。
-- 編輯頁右邊有「標記已到診／已完成／缺席」、「重發確認電郵」、「取消預約並通知」按鈕（見第 8 節已知問題）。
+- 編輯頁右邊「Save」下面同「⋯」選單入面有「標記已到診／已完成／缺席」、「重發確認電郵」、「取消預約並通知」。只會出現適用於目前狀態嘅按鈕。
 
 ### 日曆（左邊選單 Calendar）
-用週或月檢視睇晒所有預約，顏色代表醫生。保留中嘅時段係金色，已取消或者過期嘅係灰色，封時段係深綠色。
+用週或月檢視睇晒所有預約，顏色代表醫生。保留中嘅時段係金色，已取消或者過期嘅係灰色，封時段係深綠色。撳個預約會打開佢嘅編輯頁。
+
+日曆資料有病人姓名，所以要登入後台先讀到。如果你係喺呢個改動之前已經登入，日曆會顯示「Please configure the settings」，登出再登入一次就得。
 
 ### 排期規則（Content Manager → 排期規則 Schedule rule）
 每條規則嘅「效果」有四種：
@@ -140,8 +142,8 @@ Strapi 自己會定時做以下工作：
 
 ## 8. 已知問題
 
-- **後台預約編輯頁**：「狀態」欄有時顯示空白，跟住右邊嘅「標記到診」、「取消並通知」等按鈕唔會出現。資料庫入面個狀態係正確嘅，問題仲調查緊。暫時可以直接喺列表頁改狀態，或者用「預約工具」頁。
-- **日曆 plugin**（`@offset-dev/strapi-calendar`）一次只可以顯示一種內容，冇篩選功能，亦唔支援自訂顯示方式，所以狀態用標題文字同顏色表示。
+- **日曆 plugin**（`@offset-dev/strapi-calendar`）一次只可以顯示一種內容，冇篩選功能，亦唔支援自訂顯示方式，所以狀態用標題文字同顏色表示。佢嘅設定頁都要登入先用得。
+- 狀態欄位叫 `bookingStatus`（預約）、`queueStatus`（輪候）、`deliveryStatus`（通知），唔叫 `status`：Strapi 5 嘅 Content Manager 會用自己嘅 draft/publish 狀態覆蓋任何叫 `status` 嘅欄位。
 - 只係為單一 server 而設，rate limit 存喺記憶體入面。
 
 ## 9. 測試
@@ -150,9 +152,15 @@ Strapi 自己會定時做以下工作：
 cd cms
 npx vitest run tests            # 排期計算 unit test
 
+# 以下兩個測試要先關咗 rate limit 再啟動 Strapi
+BOOKING_RATE_LIMIT=off npm run develop
+
 # 併發測試：50 個 request 同時搶同一個時段，應該只有 1 個成功
-BOOKING_RATE_LIMIT=off npm run develop     # 要先關咗 rate limit 再啟動
 node scripts/concurrency-test.mjs
+
+# 端對端測試（約 1 分鐘）：預約、管理連結、取消、重複預約、後台新增同修改、
+# 到診／完成、輪候改期、排期規則衝突、緊急休診、日曆權限、電郵記錄
+node scripts/e2e-test.mjs
 ```
 
 ## 10. 重設全部資料

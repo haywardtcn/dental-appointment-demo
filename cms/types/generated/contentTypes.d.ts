@@ -685,6 +685,10 @@ export interface ApiNotificationLogNotificationLog
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    deliveryStatus: Schema.Attribute.Enumeration<
+      ['PENDING', 'SENT', 'FAILED']
+    > &
+      Schema.Attribute.DefaultTo<'PENDING'>;
     language: Schema.Attribute.String;
     lastError: Schema.Attribute.Text;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
@@ -697,8 +701,6 @@ export interface ApiNotificationLogNotificationLog
     publishedAt: Schema.Attribute.DateTime;
     reservationRef: Schema.Attribute.String;
     sentAt: Schema.Attribute.DateTime;
-    status: Schema.Attribute.Enumeration<['PENDING', 'SENT', 'FAILED']> &
-      Schema.Attribute.DefaultTo<'PENDING'>;
     subject: Schema.Attribute.String;
     to: Schema.Attribute.String;
     type: Schema.Attribute.String & Schema.Attribute.Required;
@@ -755,6 +757,20 @@ export interface ApiReservationReservation extends Struct.CollectionTypeSchema {
   };
   attributes: {
     blockedUntil: Schema.Attribute.DateTime;
+    bookingStatus: Schema.Attribute.Enumeration<
+      [
+        'HELD',
+        'CONFIRMED',
+        'ARRIVED',
+        'COMPLETED',
+        'NO_SHOW',
+        'EXPIRED',
+        'RELEASED',
+        'CANCELLED',
+      ]
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'CONFIRMED'>;
     calendarColor: Schema.Attribute.String;
     calendarTitle: Schema.Attribute.String;
     cancelReason: Schema.Attribute.String;
@@ -795,20 +811,6 @@ export interface ApiReservationReservation extends Struct.CollectionTypeSchema {
     source: Schema.Attribute.Enumeration<['PUBLIC', 'WAITLIST', 'ADMIN']> &
       Schema.Attribute.DefaultTo<'ADMIN'>;
     startAt: Schema.Attribute.DateTime & Schema.Attribute.Required;
-    status: Schema.Attribute.Enumeration<
-      [
-        'HELD',
-        'CONFIRMED',
-        'ARRIVED',
-        'COMPLETED',
-        'NO_SHOW',
-        'EXPIRED',
-        'RELEASED',
-        'CANCELLED',
-      ]
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'CONFIRMED'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1005,16 +1007,16 @@ export interface ApiWaitlistEntryWaitlistEntry
       Schema.Attribute.DefaultTo<'ANY'>;
     publishedAt: Schema.Attribute.DateTime;
     queuedAt: Schema.Attribute.DateTime;
+    queueStatus: Schema.Attribute.Enumeration<
+      ['ACTIVE', 'OFFERED', 'BOOKED', 'OFFER_EXPIRED', 'EXPIRED', 'CANCELLED']
+    > &
+      Schema.Attribute.DefaultTo<'ACTIVE'>;
     replacesReservation: Schema.Attribute.Relation<
       'oneToOne',
       'api::reservation.reservation'
     >;
     service: Schema.Attribute.Relation<'manyToOne', 'api::service.service'>;
     skippedPeriods: Schema.Attribute.JSON;
-    status: Schema.Attribute.Enumeration<
-      ['ACTIVE', 'OFFERED', 'BOOKED', 'OFFER_EXPIRED', 'EXPIRED', 'CANCELLED']
-    > &
-      Schema.Attribute.DefaultTo<'ACTIVE'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

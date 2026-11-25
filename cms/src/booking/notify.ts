@@ -83,7 +83,7 @@ export async function enqueue(
   if (!to) return;
   const { subject, body } = render(type, locale || 'zh-HK', vars);
   await strapi.db.query(UID.notification).create({
-    data: { type, to, language: locale || 'zh-HK', subject, body, status: 'PENDING', attempts: 0, reservationRef: reservationRef ?? null },
+    data: { type, to, language: locale || 'zh-HK', subject, body, deliveryStatus: 'PENDING', attempts: 0, reservationRef: reservationRef ?? null },
   });
 }
 
@@ -104,14 +104,14 @@ const MAX_ATTEMPTS = 5;
 export async function dispatchOutbox(): Promise<number> {
   const now = new Date();
   const rows = await strapi.db.query(UID.notification).findMany({
-    where: { status: 'PENDING', $or: [{ nextAttemptAt: null }, { nextAttemptAt: { $lte: now } }] },
+    where: { deliveryStatus: 'PENDING', $or: [{ nextAttemptAt: null }, { nextAttemptAt: { $lte: now } }] },
     orderBy: { id: 'asc' },
     limit: 20,
   });
   for (const row of rows) {
     try {
       await strapi.plugin('email').service('email').send({ to: row.to, subject: row.subject, text: row.body });
-      await strapi.db.query(UID.notification).update({ where: { id: row.id }, data: { status: 'SENT', sentAt: new Date(), attempts: row.attempts + 1 } });
+      await strapi.db.query(UID.notification).update({ where: { id: row.id }, data: { deliveryStatus: 'SENT', sentAt: new Date(), attempts: row.attempts + 1 } });
     } catch (err) {
       const attempts = row.attempts + 1;
       await strapi.db.query(UID.notification).update({
@@ -119,7 +119,7 @@ export async function dispatchOutbox(): Promise<number> {
         data: {
           attempts,
           lastError: String((err as Error).message ?? err),
-          status: attempts >= MAX_ATTEMPTS ? 'FAILED' : 'PENDING',
+          deliveryStatus: attempts >= MAX_ATTEMPTS ? 'FAILED' : 'PENDING',
           nextAttemptAt: new Date(Date.now() + 2 ** attempts * 60_000),
         },
       });

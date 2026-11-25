@@ -108,7 +108,7 @@ async function seedSampleBookings(doctorId: string) {
           startAt: slot.start,
           endAt: slot.end,
           kind: 'APPOINTMENT',
-          status: 'CONFIRMED',
+          bookingStatus: 'CONFIRMED',
           source: 'ADMIN',
           patientName: p.patientName,
           phone: p.phone,

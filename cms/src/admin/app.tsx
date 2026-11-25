@@ -17,6 +17,6 @@ export default {
     });
   },
   bootstrap(app: StrapiApp) {
-    (app.getPlugin('content-manager') as any).apis.addDocumentAction((actions: unknown[]) => [...documentActions, ...actions]);
+    (app.getPlugin('content-manager') as any).apis.addDocumentAction((actions: unknown[]) => [...actions, ...documentActions]);
   },
 };

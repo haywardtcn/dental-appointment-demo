@@ -17,6 +17,8 @@ const config: Core.Config.Middlewares = [
   'strapi::session',
   'strapi::favicon',
   'strapi::public',
+  // Keeps patient names in calendar events behind the admin login.
+  'global::calendar-auth',
 ];
 
 export default config;

@@ -34,7 +34,7 @@ const CancelBooking = ({ model, documentId, document }: Props) => {
   const run = useRun();
   const [reason, setReason] = React.useState('');
   const [notify, setNotify] = React.useState(true);
-  if (model !== RES || !documentId || !document || !['HELD', 'CONFIRMED'].includes(document.status)) return null;
+  if (model !== RES || !documentId || !document || !['HELD', 'CONFIRMED'].includes(document.bookingStatus)) return null;
   const isBlock = document.kind === 'BLOCK';
   return {
     label: isBlock ? '取消封時段' : '取消預約並通知',
@@ -70,7 +70,7 @@ const CancelBooking = ({ model, documentId, document }: Props) => {
 const statusAction = (action: string, label: string, from: string[], done: string) => {
   const Action = ({ model, documentId, document }: Props) => {
     const run = useRun();
-    if (model !== RES || !documentId || !document || document.kind !== 'APPOINTMENT' || !from.includes(document.status)) return null;
+    if (model !== RES || !documentId || !document || document.kind !== 'APPOINTMENT' || !from.includes(document.bookingStatus)) return null;
     return {
       label,
       position: 'panel' as const,
@@ -85,7 +85,7 @@ const statusAction = (action: string, label: string, from: string[], done: strin
 
 const ResendConfirmation = ({ model, documentId, document }: Props) => {
   const run = useRun();
-  if (model !== RES || !documentId || document?.status !== 'CONFIRMED' || !document?.email) return null;
+  if (model !== RES || !documentId || document?.bookingStatus !== 'CONFIRMED' || !document?.email) return null;
   return {
     label: '重發確認電郵',
     position: 'panel' as const,
@@ -97,7 +97,7 @@ const ResendConfirmation = ({ model, documentId, document }: Props) => {
 
 const OfferNow = ({ model, documentId, document }: Props) => {
   const run = useRun();
-  if (model !== WAITLIST || !documentId || document?.status !== 'ACTIVE') return null;
+  if (model !== WAITLIST || !documentId || document?.queueStatus !== 'ACTIVE') return null;
   return {
     label: '立即搵位 offer',
     position: 'panel' as const,
@@ -109,7 +109,7 @@ const OfferNow = ({ model, documentId, document }: Props) => {
 
 const RetryNotification = ({ model, documentId, document }: Props) => {
   const run = useRun();
-  if (model !== NOTIFICATION || !documentId || document?.status !== 'FAILED') return null;
+  if (model !== NOTIFICATION || !documentId || document?.deliveryStatus !== 'FAILED') return null;
   return {
     label: '重試寄出',
     position: 'panel' as const,

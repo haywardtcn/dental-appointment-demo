@@ -28,7 +28,7 @@
     "body": {
       "type": "text"
     },
-    "status": {
+    "deliveryStatus": {
       "type": "enumeration",
       "enum": [
         "PENDING",

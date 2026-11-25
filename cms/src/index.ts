@@ -19,7 +19,7 @@ export default {
       if (!WRITES.includes(action)) return next();
 
       if (uid === UID.reservation) {
-        if (action === 'delete') throw new errors.ApplicationError('預約唔可以刪除，請將狀態改做「CANCELLED」· Bookings cannot be deleted; set the status to CANCELLED');
+        if (action === 'delete') throw new errors.ApplicationError('預約唔可以刪除，請將 bookingStatus 改做「CANCELLED」· Bookings cannot be deleted; set bookingStatus to CANCELLED');
         if (action === 'create' || action === 'update') return reservationWrite(context, next);
       }
       if (uid === UID.waitlist && (action === 'create' || action === 'update')) return waitlistWrite(context, next);

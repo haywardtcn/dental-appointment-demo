@@ -47,8 +47,11 @@ export type ClinicStatus = { minuteOfDay: number; weekly: Record<string, Range[]
 
 export const api = {
   services: () => call<ServicesResponse>('/services'),
-  availability: (service: string, doctor?: string) =>
-    call<Availability>(`/availability?service=${encodeURIComponent(service)}${doctor ? `&doctor=${encodeURIComponent(doctor)}` : ''}`),
+  /** The whole booking window; the server cuts it at the clinic's bookingHorizonDays. */
+  availability: (service: string, doctor?: string) => {
+    const to = new Date(Date.now() + 62 * 86_400_000).toISOString().slice(0, 10);
+    return call<Availability>(`/availability?service=${encodeURIComponent(service)}&to=${to}${doctor ? `&doctor=${encodeURIComponent(doctor)}` : ''}`);
+  },
   clinicStatus: () => call<ClinicStatus>('/clinic-status'),
   hold: (body: { service: string; doctor?: string; startAt: string; previousHoldId?: string; previousHoldToken?: string }) => post<Hold>('/holds', body),
   release: (id: string, token: string) => call<{ released: boolean }>(`/holds/${id}`, { method: 'DELETE' }, { 'x-hold-token': token }),

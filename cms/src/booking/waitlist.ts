@@ -51,11 +51,11 @@ export async function waitlistWrite(context: any, next: () => Promise<any>) {
     if (!phone) fail('電話號碼格式唔啱 · Phone number is not valid');
     if (!email) fail('電郵格式唔啱 · Email is not valid');
 
-    if (['ACTIVE', 'OFFERED'].includes(e.status)) {
+    if (['ACTIVE', 'OFFERED'].includes(e.queueStatus)) {
       const clash = await strapi.db.query(UID.waitlist).count({
         where: {
           documentId: { $ne: e.documentId },
-          status: { $in: ['ACTIVE', 'OFFERED'] },
+          queueStatus: { $in: ['ACTIVE', 'OFFERED'] },
           service: { documentId: e.service.documentId },
           dateFrom: { $lte: e.dateTo },
           dateTo: { $gte: e.dateFrom },
@@ -74,7 +74,7 @@ export async function waitlistWrite(context: any, next: () => Promise<any>) {
       if (!e.replacesReservation) {
         const existing = await strapi.db.query(UID.reservation).count({
           where: {
-            status: 'CONFIRMED',
+            bookingStatus: 'CONFIRMED',
             startAt: { $gt: new Date() },
             service: { documentId: e.service.documentId },
             $or: [{ phoneNormalized: phone }, { emailNormalized: email }],
@@ -93,7 +93,7 @@ export async function waitlistWrite(context: any, next: () => Promise<any>) {
         leaveUrl: leaveUrl(e.documentId, token),
       });
     }
-    shouldMatch = e.status === 'ACTIVE';
+    shouldMatch = e.queueStatus === 'ACTIVE';
     return out;
   });
   if (shouldMatch) scheduleWaitlistMatch();
@@ -123,7 +123,7 @@ async function findOffer(e: Row) {
 
   const now = Date.now();
   const skipped = new Set<string>(Array.isArray(e.skippedPeriods) ? e.skippedPeriods : []);
-  const replaces = e.replacesReservation && ACTIVE_STATUSES.includes(e.replacesReservation.status) ? e.replacesReservation : null;
+  const replaces = e.replacesReservation && ACTIVE_STATUSES.includes(e.replacesReservation.bookingStatus) ? e.replacesReservation : null;
   const before = replaces ? new Date(replaces.startAt).getTime() : Infinity;
   const busy = await busyByDoctor(doctors.map((d) => d.documentId), from.toJSDate(), to.plus({ days: 1 }).toJSDate());
 
@@ -161,7 +161,7 @@ async function offerTo(e: Row): Promise<boolean> {
             endAt: new Date(slot.end),
             blockedUntil: new Date(slot.blockedUntil),
             kind: 'APPOINTMENT',
-            status: 'HELD',
+            bookingStatus: 'HELD',
             source: 'WAITLIST',
             expiresAt,
             patientName: e.name,
@@ -173,7 +173,7 @@ async function offerTo(e: Row): Promise<boolean> {
         const holdRow = await strapi.db.query(UID.reservation).findOne({ where: { documentId: hold.documentId } });
         await strapi.db.query(UID.waitlist).update({
           where: { id: e.id },
-          data: { status: 'OFFERED', offerReservation: holdRow.id, offerTokenHash: hashToken(token), offerExpiresAt: expiresAt },
+          data: { queueStatus: 'OFFERED', offerReservation: holdRow.id, offerTokenHash: hashToken(token), offerExpiresAt: expiresAt },
         });
         await enqueue('WAITLIST_OFFER', e.email, locale, {
           name: e.name,
@@ -205,12 +205,12 @@ export function matchWaitlist(opts: { entryId?: string } = {}): Promise<number> 
   if (running) return running;
   running = (async () => {
     const entries = await strapi.db.query(UID.waitlist).findMany({
-      where: { status: 'ACTIVE', dateTo: { $gte: todayHK().toISODate() }, ...(opts.entryId ? { documentId: opts.entryId } : {}) },
+      where: { queueStatus: 'ACTIVE', dateTo: { $gte: todayHK().toISODate() }, ...(opts.entryId ? { documentId: opts.entryId } : {}) },
       orderBy: [{ queuedAt: 'asc' }, { id: 'asc' }],
       populate: ['service', 'doctor', 'replacesReservation'],
     });
     if (!entries.length) return 0;
-    const offered = await strapi.db.query(UID.waitlist).findMany({ where: { status: 'OFFERED' }, select: ['phoneNormalized'] });
+    const offered = await strapi.db.query(UID.waitlist).findMany({ where: { queueStatus: 'OFFERED' }, select: ['phoneNormalized'] });
     const busyPhones = new Set(offered.map((o: Row) => o.phoneNormalized));
     let made = 0;
     for (const e of entries) {
@@ -231,13 +231,13 @@ export function matchWaitlist(opts: { entryId?: string } = {}): Promise<number> 
 export async function expireOffers(): Promise<number> {
   const { settings } = await loadScheduleData();
   const stale = await strapi.db.query(UID.waitlist).findMany({
-    where: { status: 'OFFERED', offerExpiresAt: { $lt: new Date() } },
+    where: { queueStatus: 'OFFERED', offerExpiresAt: { $lt: new Date() } },
     populate: ['offerReservation', 'service'],
   });
   for (const e of stale) {
     const hold = e.offerReservation;
-    if (hold?.status === 'HELD') {
-      await runInternal(() => strapi.documents(UID.reservation).update({ documentId: hold.documentId, data: { status: 'EXPIRED' } as any }));
+    if (hold?.bookingStatus === 'HELD') {
+      await runInternal(() => strapi.documents(UID.reservation).update({ documentId: hold.documentId, data: { bookingStatus: 'EXPIRED' } as any }));
     }
     const offerCount = (e.offerCount ?? 0) + 1;
     const skipped = [...(Array.isArray(e.skippedPeriods) ? e.skippedPeriods : [])];
@@ -246,7 +246,7 @@ export async function expireOffers(): Promise<number> {
     await strapi.db.query(UID.waitlist).update({
       where: { id: e.id },
       data: {
-        status: giveUp ? 'OFFER_EXPIRED' : 'ACTIVE',
+        queueStatus: giveUp ? 'OFFER_EXPIRED' : 'ACTIVE',
         offerCount,
         skippedPeriods: skipped,
         queuedAt: giveUp ? e.queuedAt : new Date(),
@@ -270,12 +270,12 @@ async function doctorOf(reservationDocumentId: string): Promise<string | null> {
 
 export async function expireOldEntries(): Promise<number> {
   const today = todayHK().toISODate();
-  const old = await strapi.db.query(UID.waitlist).findMany({ where: { status: { $in: ['ACTIVE', 'OFFERED'] }, dateTo: { $lt: today } }, populate: ['offerReservation'] });
+  const old = await strapi.db.query(UID.waitlist).findMany({ where: { queueStatus: { $in: ['ACTIVE', 'OFFERED'] }, dateTo: { $lt: today } }, populate: ['offerReservation'] });
   for (const e of old) {
-    if (e.offerReservation?.status === 'HELD') {
-      await runInternal(() => strapi.documents(UID.reservation).update({ documentId: e.offerReservation.documentId, data: { status: 'RELEASED' } as any }));
+    if (e.offerReservation?.bookingStatus === 'HELD') {
+      await runInternal(() => strapi.documents(UID.reservation).update({ documentId: e.offerReservation.documentId, data: { bookingStatus: 'RELEASED' } as any }));
     }
-    await strapi.db.query(UID.waitlist).update({ where: { id: e.id }, data: { status: 'EXPIRED' } });
+    await strapi.db.query(UID.waitlist).update({ where: { id: e.id }, data: { queueStatus: 'EXPIRED' } });
   }
   return old.length;
 }
@@ -295,9 +295,9 @@ async function entryByOfferToken(token: string) {
 export async function viewOffer(token: string) {
   const e = await entryByOfferToken(token);
   const r = e.offerReservation;
-  const valid = e.status === 'OFFERED' && r?.status === 'HELD' && new Date(r.expiresAt).getTime() > Date.now();
+  const valid = e.queueStatus === 'OFFERED' && r?.bookingStatus === 'HELD' && new Date(r.expiresAt).getTime() > Date.now();
   return {
-    status: e.status === 'BOOKED' ? 'BOOKED' : valid ? 'OPEN' : 'EXPIRED',
+    status: e.queueStatus === 'BOOKED' ? 'BOOKED' : valid ? 'OPEN' : 'EXPIRED',
     name: e.name,
     language: e.language,
     startAt: r ? new Date(r.startAt).toISOString() : null,
@@ -309,31 +309,31 @@ export async function viewOffer(token: string) {
     serviceZh: r?.service?.nameZh ?? e.service?.nameZh,
     serviceEn: r?.service?.nameEn ?? e.service?.nameEn,
     reference: r?.reference,
-    replacesStartAt: e.replacesReservation && ACTIVE_STATUSES.includes(e.replacesReservation.status) ? new Date(e.replacesReservation.startAt).toISOString() : null,
+    replacesStartAt: e.replacesReservation && ACTIVE_STATUSES.includes(e.replacesReservation.bookingStatus) ? new Date(e.replacesReservation.startAt).toISOString() : null,
   };
 }
 
 export async function acceptOffer(token: string) {
   const e = await entryByOfferToken(token);
   const r = e.offerReservation;
-  if (e.status !== 'OFFERED' || r?.status !== 'HELD' || new Date(r.expiresAt).getTime() <= Date.now()) {
+  if (e.queueStatus !== 'OFFERED' || r?.bookingStatus !== 'HELD' || new Date(r.expiresAt).getTime() <= Date.now()) {
     throw new BookingError('HOLD_EXPIRED', 410);
   }
   const patient = validatePatient({ name: e.name, phone: e.phone, email: e.email, locale: e.language, consent: true });
-  const replaces = e.replacesReservation && ACTIVE_STATUSES.includes(e.replacesReservation.status) ? e.replacesReservation.documentId : null;
+  const replaces = e.replacesReservation && ACTIVE_STATUSES.includes(e.replacesReservation.bookingStatus) ? e.replacesReservation.documentId : null;
   const booked = await confirmReservation(r.documentId, patient, { replaces });
-  await strapi.db.query(UID.waitlist).update({ where: { id: e.id }, data: { status: 'BOOKED', offerTokenHash: null } });
+  await strapi.db.query(UID.waitlist).update({ where: { id: e.id }, data: { queueStatus: 'BOOKED', offerTokenHash: null } });
   return booked;
 }
 
 export async function leaveWaitlist(documentId: string, token: string) {
   const e = await strapi.db.query(UID.waitlist).findOne({ where: { documentId }, populate: ['offerReservation'] });
   if (!e || !token || e.manageTokenHash !== hashToken(token)) throw new BookingError('NOT_FOUND', 404);
-  if (['ACTIVE', 'OFFERED'].includes(e.status)) {
-    if (e.offerReservation?.status === 'HELD') {
-      await runInternal(() => strapi.documents(UID.reservation).update({ documentId: e.offerReservation.documentId, data: { status: 'RELEASED' } as any }));
+  if (['ACTIVE', 'OFFERED'].includes(e.queueStatus)) {
+    if (e.offerReservation?.bookingStatus === 'HELD') {
+      await runInternal(() => strapi.documents(UID.reservation).update({ documentId: e.offerReservation.documentId, data: { bookingStatus: 'RELEASED' } as any }));
     }
-    await strapi.db.query(UID.waitlist).update({ where: { id: e.id }, data: { status: 'CANCELLED' } });
+    await strapi.db.query(UID.waitlist).update({ where: { id: e.id }, data: { queueStatus: 'CANCELLED' } });
   }
   return { status: 'CANCELLED', name: e.name };
 }

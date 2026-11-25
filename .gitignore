@@ -9,3 +9,6 @@ dist/
 
 # Generated screenshots from the taste-skill inspector
 .taste-skill/inspect/
+
+# Database exports: admin password hashes and session tokens
+data/
